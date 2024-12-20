@@ -42,7 +42,7 @@ CREATE TABLE "thread_tags" (
     FOREIGN KEY ("tag_id") REFERENCES "tags" ("id")
 );
 
--- 'posts' table to store all the posts within a thead
+-- 'posts' table to store all the posts
 CREATE TABLE "posts" (
     "id" INTEGER,
     "user_id" INTEGER NOT NULL,
@@ -54,40 +54,21 @@ CREATE TABLE "posts" (
     FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
--- 'thread_posts' table will store 'posts' if its posted in a thread
+-- 'thread_posts' table will store 'posts' that are posted on a thread
 CREATE TABLE "thread_posts" (
     "id" INTEGER,
     "thread_id" INTEGER,
     "post_id" INTEGER,
+    UNIQUE("thread_id", "post_id"),
     PRIMARY KEY ("id"),
     FOREIGN KEY ("thread_id") REFERENCES "threads" ("id") ON DELETE CASCADE,
     FOREIGN KEY ("post_id") REFERENCES "posts" ("id")
 );
 
--- 'votes' table will store user's comments 
-CREATE TABLE "votes" (
-    "id" INTEGER,
-    "thread_id" INTEGER,
-    "user_id" INTEGER,
-    UNIQUE ("thread_id", "user_id"),
-    PRIMARY KEY("id"),
-    FOREIGN KEY ("thread_id") REFERENCES "threads" ("id") ON DELETE CASCADE,
-    FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
-);
-
--- 'likes' table will store users's likes
-CREATE TABLE "likes" (
-    "id" INTEGER,
-    "post_id" INTEGER,
-    "user_id" INTEGER,
-    PRIMARY KEY ("id"),
-    FOREIGN KEY ("post_id") REFERENCES "posts" ("id") ON DELETE CASCADE,
-    FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
-);
-
+-- 'comments' table will store users' comments
 CREATE TABLE "comments" (
     "id" INTEGER,
-    "post_id" INTEGER DEFAULT NULL,
+    "post_id" INTEGER NOT NULL,
     "user_id" INTEGER NOT NULL,
     "comment_id" INTEGER DEFAULT NULL,
     "comment" VARCHAR(250) NOT NULL,
@@ -99,28 +80,57 @@ CREATE TABLE "comments" (
 );
 
 
-CREATE TRIGGER "vote_count_increment"
+-- 'votes' table will store thread and user who upvoted the thread 
+CREATE TABLE "votes" (
+    "id" INTEGER,
+    "thread_id" INTEGER,
+    "user_id" INTEGER,
+    UNIQUE ("thread_id", "user_id"),
+    PRIMARY KEY("id"),
+    FOREIGN KEY ("thread_id") REFERENCES "threads" ("id") ON DELETE CASCADE,
+    FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
+);
+
+-- 'likes' table will store post and user who liked it
+CREATE TABLE "likes" (
+    "id" INTEGER,
+    "post_id" INTEGER,
+    "user_id" INTEGER,
+    UNIQUE("post_id", "user_id"),
+    PRIMARY KEY ("id"),
+    FOREIGN KEY ("post_id") REFERENCES "posts" ("id") ON DELETE CASCADE,
+    FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
+);
+
+
+
+-- Triggers
+-- trigger to increase 'votes' on 'threads' table when the 'votes' is inserted with new record
+CREATE TRIGGER "upvote"
 AFTER INSERT ON "votes"
 BEGIN
     UPDATE "threads" SET "votes" = "votes" + 1
     WHERE "threads"."id" = NEW."thread_id";
 END;
 
-CREATE TRIGGER "vote_count_decrement"
+-- trigger to decrease 'votes' on 'threads' when a record is deleted from 'likes'
+CREATE TRIGGER "downvote"
 BEFORE DELETE ON "votes"
 BEGIN
     UPDATE "threads" SET "votes" = "votes" - 1
     WHERE "threads"."id" = OLD."thread_id";
 END;
 
-CREATE TRIGGER "like_count_increment"
+-- trigger to increase 'likes' on 'posts' table when the 'likes' is inserted with new record
+CREATE TRIGGER "like"
 AFTER INSERT ON "likes"
-BEGIN 
+BEGIN
     UPDATE "posts" SET "likes" = "likes" + 1
-    WHERE "likes" = NEW."post_id";
+    WHERE "posts"."id" = NEW."post_id";
 END;
 
-CREATE TRIGGER "like_count_decrement"
+-- trigger to decrease 'likes' on 'posts' when a record is delete from 'likes'
+CREATE TRIGGER "dislike"
 BEFORE DELETE ON "likes"
 BEGIN
     UPDATE "posts" SET "likes" = "likes" - 1
